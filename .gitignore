@@ -1,0 +1,4 @@
+public/status.json
+public/history.json
+statusboard.config.json
+*.tmp

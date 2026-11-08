@@ -1,0 +1,9 @@
+{
+  "title": "bilgen.dev status",
+  "timeoutMs": 10000,
+  "keep": 4032,
+  "targets": [
+    { "id": "mailcheck", "name": "mailcheck", "url": "https://mailcheck.bilgen.dev/", "keyword": "mailcheck" },
+    { "id": "status", "name": "status page", "url": "https://status.bilgen.dev/" }
+  ]
+}

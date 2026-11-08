@@ -1,0 +1,12 @@
+{
+  "name": "statusboard",
+  "version": "0.1.0",
+  "description": "Self-hosted status page generator. A tiny Node monitor writes JSON, a static page renders it. HTTP, latency, TLS expiry, uptime and incidents. No dependencies.",
+  "type": "module",
+  "bin": { "statusboard": "bin/statusboard.js" },
+  "scripts": { "test": "node --test", "check": "node bin/statusboard.js run --config statusboard.config.example.json --out public" },
+  "engines": { "node": ">=18" },
+  "keywords": ["status-page", "uptime", "monitoring", "self-hosted", "tls"],
+  "author": "Emin Bilgen",
+  "license": "MIT"
+}

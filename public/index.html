@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Status</title>
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0b;--panel:#111113;--line:#232327;--tx:#ecebe6;--mut:#8b8b92;--ac:#ff5b2e;--ok:#5bd68a;--warn:#e7b341;--fail:#ff5468}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.55 'Inter Tight',system-ui,sans-serif;min-height:100vh}
+.wrap{max-width:900px;margin:0 auto;padding:0 clamp(18px,4vw,32px) 60px}
+nav{display:flex;justify-content:space-between;padding:22px 0;font:600 13px 'JetBrains Mono',monospace;letter-spacing:.04em;color:var(--mut)}
+nav b{color:var(--tx);font-weight:600}
+.hero{display:flex;align-items:center;gap:18px;padding:28px;border:1px solid var(--line);background:var(--panel);border-radius:4px;margin:10px 0 22px}
+.pulse{width:16px;height:16px;border-radius:50%;background:var(--mut);flex:none;position:relative}
+.pulse::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid currentColor;opacity:.5;animation:p 2s infinite}
+.pulse.ok{background:var(--ok);color:var(--ok)}.pulse.warn{background:var(--warn);color:var(--warn)}.pulse.fail{background:var(--fail);color:var(--fail)}
+@keyframes p{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+.hero h1{font:700 clamp(24px,4vw,38px)/1.1 'Inter Tight';letter-spacing:-.03em}
+.hero p{color:var(--mut);font:13px 'JetBrains Mono',monospace;margin-top:4px}
+.stale{display:none;margin-bottom:18px;padding:12px 16px;border:1px solid var(--warn);color:var(--warn);border-radius:3px;font:13px 'JetBrains Mono',monospace}
+.svc{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:20px;margin-bottom:12px}
+.svc .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);flex:none}
+.dot.bad{background:var(--fail);box-shadow:0 0 10px var(--fail)}
+.svc h2{font:600 18px 'Inter Tight';flex:1;min-width:120px}
+.svc h2 a{color:inherit;text-decoration:none;border-bottom:1px dashed var(--line)}
+.state{font:600 11px 'JetBrains Mono',monospace;letter-spacing:.08em;padding:3px 8px;border-radius:2px}
+.state.up{background:rgba(91,214,138,.14);color:var(--ok)}.state.down{background:rgba(255,84,104,.14);color:var(--fail)}
+.bars{display:flex;align-items:flex-end;gap:2px;height:44px;margin:16px 0 12px}
+.bars i{flex:1;min-width:2px;border-radius:1px;background:var(--ok);opacity:.85;transition:opacity .2s}
+.bars i.bad{background:var(--fail);height:100%!important;opacity:1}
+.bars i:hover{opacity:1;outline:1px solid var(--tx)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border-radius:3px;overflow:hidden}
+.stats div{background:var(--panel);padding:10px 12px}
+.stats small{display:block;font:11px 'JetBrains Mono',monospace;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.stats b{font:600 17px 'Inter Tight'}
+.err{margin-top:10px;color:var(--fail);font:12px 'JetBrains Mono',monospace}
+h3{font:600 13px 'JetBrains Mono',monospace;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;margin:34px 0 12px}
+.inc{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line);font:13px 'JetBrains Mono',monospace;color:#c4c3bd}
+.inc:last-child{border-bottom:1px solid var(--line)}.inc span:last-child{color:var(--mut)}
+.empty{color:var(--mut);font:13px 'JetBrains Mono',monospace}
+footer{color:var(--mut);font:12px/1.7 'JetBrains Mono',monospace;margin-top:34px}
+@media(max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><b id="title">Status</b><span id="clock"></span></nav>
+  <div class="hero"><span class="pulse" id="pulse"></span><div><h1 id="headline">Checking…</h1><p id="sub"></p></div></div>
+  <div class="stale" id="stale"></div>
+  <div id="list"></div>
+  <h3>Recent incidents</h3>
+  <div id="incidents"><p class="empty">Loading…</p></div>
+  <footer>Each bar is one check; height is response time, red is a failed check. Uptime is the share of successful checks, not a contractual SLA. Powered by <a href="https://github.com/eminbilgen/statusboard" style="color:inherit">statusboard</a>.</footer>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ago = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 90 ? `${s}s` : s < 5400 ? `${Math.round(s / 60)} min` : s < 129600 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} d`; };
+const dur = (ms) => (ms < 90000 ? '<2 min' : ago(ms));
+const fmt = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const pct = (v) => (v == null ? 'n/a' : `${v}%`);
+
+function render(d) {
+  document.title = d.title;
+  $('title').textContent = d.title;
+  const { up, total } = d.summary;
+  const state = up === total ? 'ok' : up === 0 ? 'fail' : 'warn';
+  $('pulse').className = `pulse ${state}`;
+  $('headline').textContent = state === 'ok' ? 'All systems operational' : state === 'fail' ? 'Major outage' : 'Partial outage';
+  const age = Date.now() - d.generatedAt;
+  $('sub').textContent = `${up} of ${total} services up · checked ${ago(age)} ago`;
+  const stale = age > d.intervalMin * 60000 * 3;
+  $('stale').style.display = stale ? 'block' : 'none';
+  if (stale) $('stale').textContent = `The monitor has not reported for ${ago(age)}. The data below may be out of date.`;
+  $('list').innerHTML = d.targets.map((t) => {
+    const max = Math.max(...t.recent.filter((r) => r.ok).map((r) => r.ms), 200);
+    const bars = t.recent.map((r) => `<i class="${r.ok ? '' : 'bad'}" style="height:${r.ok ? Math.max(8, Math.round((r.ms / max) * 100)) : 100}%" title="${esc(fmt(r.t))} · ${r.ok ? r.ms + ' ms' : 'failed'}"></i>`).join('');
+    const name = t.url ? `<a href="${esc(t.url)}" rel="noopener">${esc(t.name)}</a>` : esc(t.name);
+    const tls = t.tlsDays == null ? 'n/a' : `${t.tlsDays} d`;
+    return `<section class="svc"><div class="row"><span class="dot ${t.ok ? '' : 'bad'}"></span><h2>${name}</h2><span class="state ${t.ok ? 'up' : 'down'}">${t.ok ? 'UP' : 'DOWN'}</span></div>
+      <div class="bars" aria-label="Last ${t.recent.length} checks">${bars}</div>
+      <div class="stats"><div><small>24h uptime</small><b>${pct(t.uptime24h)}</b></div><div><small>7d uptime</small><b>${pct(t.uptime7d)}</b></div><div><small>Avg response</small><b>${t.avgMs == null ? 'n/a' : t.avgMs + ' ms'}</b></div><div><small>TLS expires</small><b>${tls}</b></div></div>
+      ${t.ok ? '' : `<div class="err">${esc(t.error || 'Check failed')}</div>`}</section>`;
+  }).join('');
+  const inc = d.targets.flatMap((t) => t.incidents.map((i) => ({ ...i, name: t.name }))).sort((a, b) => b.startedAt - a.startedAt).slice(0, 8);
+  $('incidents').innerHTML = inc.length ? inc.map((i) => `<div class="inc"><span>${esc(i.name)} · ${esc(fmt(i.startedAt))}</span><span>${i.endedAt ? 'resolved after ~' + dur(i.durationMs) : 'ongoing'}</span></div>`).join('') : '<p class="empty">No incidents recorded.</p>';
+}
+
+async function load() {
+  try {
+    const res = await fetch(`status.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    render(await res.json());
+  } catch (err) {
+    $('headline').textContent = 'No data yet';
+    $('sub').textContent = `status.json could not be loaded (${err.message}). Has the monitor run?`;
+  }
+}
+load();
+setInterval(load, 60000);
+setInterval(() => { $('clock').textContent = new Date().toISOString().slice(11, 19) + ' UTC'; }, 1000);
+</script>
+</body>
+</html>
